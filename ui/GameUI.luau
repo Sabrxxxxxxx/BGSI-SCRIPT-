@@ -118,8 +118,8 @@ function GameUI.new(playerGui, callbacks)
 	local hud = Instance.new("Frame")
 	hud.Name = "MainButtons"
 	hud.Size = UDim2.new(0, 250, 0, 390)
-	hud.AnchorPoint = Vector2.new(0, 0.5)
-	hud.Position = UDim2.new(0, 16, 0.5, 0)
+	hud.AnchorPoint = Vector2.new(0, 1)
+	hud.Position = UDim2.new(0, 16, 1, -16)
 	hud.BackgroundTransparency = 1
 	hud.Parent = gui
 	local hudScale = Instance.new("UIScale")
@@ -222,8 +222,8 @@ function GameUI.new(playerGui, callbacks)
 	local stats = Instance.new("Frame")
 	stats.Name = "Currencies"
 	stats.Size = UDim2.new(0, 250, 0, 168)
-	stats.AnchorPoint = Vector2.new(0, 1)
-	stats.Position = UDim2.new(0, 16, 1, -16)
+	stats.AnchorPoint = Vector2.new(0, 0)
+	stats.Position = UDim2.new(0, 16, 0, 64)
 	stats.BackgroundTransparency = 1
 	stats.Parent = gui
 	local statsScale = Instance.new("UIScale")
