@@ -106,6 +106,12 @@ Style.Gradients = {
 	Blue = { Color3.fromRGB(70, 200, 255), Color3.fromRGB(30, 120, 240) },
 	Cyan = { Color3.fromRGB(150, 235, 255), Color3.fromRGB(70, 190, 250) },
 	BluePurple = { Color3.fromRGB(0, 220, 255), Color3.fromRGB(150, 70, 255) },
+	Pink = { Color3.fromRGB(255, 90, 200), Color3.fromRGB(215, 20, 110) },
+	Gold = { Color3.fromRGB(255, 214, 70), Color3.fromRGB(235, 160, 10) },
+	RedOrange = { Color3.fromRGB(255, 80, 40), Color3.fromRGB(255, 150, 20) },
+	Grey = { Color3.fromRGB(205, 210, 218), Color3.fromRGB(135, 143, 156) },
+	DarkGrey = { Color3.fromRGB(118, 124, 132), Color3.fromRGB(78, 84, 92) },
+	Navy = { Color3.fromRGB(52, 58, 92), Color3.fromRGB(26, 30, 56) },
 }
 
 local RAINBOW = ColorSequence.new({
@@ -385,10 +391,11 @@ function Style.button(props)
 end
 
 -- Red "!" notification badge (circle) that can be shown/hidden.
-function Style.badge(parent, position)
+function Style.badge(parent, position, size, text)
+	size = size or 34
 	local b = Instance.new("Frame")
 	b.Name = "Badge"
-	b.Size = UDim2.new(0, 34, 0, 34)
+	b.Size = UDim2.new(0, size, 0, size)
 	b.AnchorPoint = Vector2.new(0.5, 0.5)
 	b.Position = position
 	b.BackgroundColor3 = Color3.fromRGB(235, 25, 40)
@@ -398,8 +405,15 @@ function Style.badge(parent, position)
 	local c = Instance.new("UICorner")
 	c.CornerRadius = UDim.new(1, 0)
 	c.Parent = b
-	Style.stroke(b, 3, Color3.fromRGB(255, 255, 255))
-	Style.label({ Parent = b, Text = "!", TextSize = 26, ZIndex = 31, StrokeThickness = 2 })
+	Style.stroke(b, 2.5, Color3.fromRGB(255, 255, 255))
+	local badgeText = Style.label({
+		Parent = b,
+		Name = "Text",
+		Text = text or "!",
+		TextSize = math.floor(size * 0.76),
+		ZIndex = 31,
+		StrokeThickness = 2,
+	})
 	local pulse = Instance.new("UIScale")
 	pulse.Parent = b
 	Style.onIdle(b, function(t)
@@ -420,16 +434,17 @@ function Style.deviceScale(camera)
 	return math.clamp(math.min(v.X / 1050, v.Y / 620), 0.52, 1.18)
 end
 
-function Style.closeButton(parent, onClick)
+function Style.closeButton(parent, onClick, size, position)
+	size = size or 60
 	local b = Style.button({
 		Name = "CloseButton",
 		Parent = parent,
-		Size = UDim2.new(0, 50, 0, 50),
+		Size = UDim2.new(0, size, 0, size),
 		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, 14, 0, -22),
+		Position = position or UDim2.new(1, 18, 0, 6),
 		Gradient = Style.Gradients.Red,
 		Text = "X",
-		TextSize = 40,
+		TextSize = math.floor(size * 0.8),
 		ZIndex = 40,
 		BorderThickness = 3.5,
 		HoverRotation = 90,
@@ -473,8 +488,8 @@ function Style.window(props)
 	local header = Style.tile({
 		Name = "Header",
 		Parent = frame,
-		Size = UDim2.new(0, props.HeaderWidth or 250, 0, 62),
-		Position = UDim2.new(0, -14, 0, 0),
+		Size = UDim2.new(0, props.HeaderWidth or 250, 0, props.HeaderHeight or 64),
+		Position = UDim2.new(0, props.HeaderX or -20, 0, 0),
 		Gradient = props.HeaderGradient or Style.Gradients.Orange,
 		ZIndex = 30,
 		BorderThickness = 4,
@@ -495,7 +510,7 @@ function Style.window(props)
 		Parent = header,
 		Name = "Title",
 		Text = props.Title,
-		TextSize = 40,
+		TextSize = props.TitleSize or 42,
 		XAlignment = Enum.TextXAlignment.Left,
 		Position = UDim2.new(0, titleX, 0, 0),
 		Size = UDim2.new(1, -titleX - 8, 1, 0),
@@ -510,7 +525,7 @@ function Style.window(props)
 		return open
 	end
 
-	local goals = {}
+	local goals = setmetatable({}, { __mode = "k" })
 	local function intro()
 		local index = 0
 		for _, child in ipairs(panel:GetChildren()) do
@@ -580,7 +595,7 @@ function Style.window(props)
 		end
 	end
 
-	Style.closeButton(frame, window.Close)
+	Style.closeButton(frame, window.Close, props.CloseSize, props.ClosePosition)
 
 	if props.Camera then
 		props.Camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
