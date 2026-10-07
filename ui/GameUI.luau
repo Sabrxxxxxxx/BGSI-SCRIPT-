@@ -16,6 +16,8 @@
 --   ui.SetTrophies(100); ui.SetRebirths(0); ui.SetPets({...}); ui.SetRebirthData({...})
 
 local Style = require(script.Parent.Style)
+local Lighting = game:GetService("Lighting")
+local TweenService = game:GetService("TweenService")
 
 local GameUI = {}
 
@@ -41,6 +43,25 @@ local function formatNumber(n)
 	return (n < 0 and "-" or "") .. s .. suffixes[i]
 end
 GameUI.formatNumber = formatNumber
+
+-- Smoothly counts a label's number up/down to a new value.
+local function countTo(label, target)
+	local from = label:GetAttribute("Value") or 0
+	label:SetAttribute("Value", target)
+	local token = (label:GetAttribute("Token") or 0) + 1
+	label:SetAttribute("Token", token)
+	task.spawn(function()
+		local start = os.clock()
+		while label:GetAttribute("Token") == token do
+			local a = math.min((os.clock() - start) / 0.5, 1)
+			label.Text = formatNumber(from + (target - from) * a)
+			if a >= 1 then
+				break
+			end
+			task.wait()
+		end
+	end)
+end
 
 local function rarityGradient(rarity)
 	local map = {
@@ -91,8 +112,25 @@ function GameUI.new(playerGui, callbacks)
 
 	local ui = { Gui = gui, Windows = {} }
 
+	-- Background blur while any window is open
+	local blur = Lighting:FindFirstChild("MenuBlur") or Instance.new("BlurEffect")
+	blur.Name = "MenuBlur"
+	blur.Size = 0
+	blur.Parent = Lighting
+	local function refreshBlur()
+		local anyOpen = false
+		for _, window in pairs(ui.Windows) do
+			if window.IsOpen() then
+				anyOpen = true
+			end
+		end
+		TweenService:Create(blur, TweenInfo.new(0.25), { Size = anyOpen and 14 or 0 }):Play()
+	end
+
 	local function register(name, window)
 		ui.Windows[name] = window
+		window.OnOpen = refreshBlur
+		window.OnClose = refreshBlur
 		local open = window.Open
 		window.Open = function()
 			for otherName, other in pairs(ui.Windows) do
@@ -175,13 +213,18 @@ function GameUI.new(playerGui, callbacks)
 		StrokeThickness = 4,
 		ZIndex = 10,
 	})
-	Style.icon({
+	local cartIcon = Style.icon({
 		Parent = storeWrapper,
 		Image = Style.Icons.Cart,
 		Size = UDim2.new(0, 96, 0, 96),
 		Position = UDim2.new(0.5, 0, 0, -22),
 		ZIndex = 12,
+		NoShadow = true,
 	})
+	Style.onIdle(cartIcon, function(t)
+		cartIcon.Position = UDim2.new(0.5, 0, 0, -22 + math.sin(t * 2.5) * 4)
+		cartIcon.Rotation = math.sin(t * 1.8) * 5
+	end)
 	ui.StoreBadge = Style.badge(storeWrapper, UDim2.new(1, -12, 0, 10))
 
 	gridTile("Pets", "Pets", Style.Icons.Pet, Style.Gradients.Green, 0, 142, function()
@@ -283,10 +326,10 @@ function GameUI.new(playerGui, callbacks)
 	Style.icon({ Parent = plus, Image = Style.Icons.Plus, Size = UDim2.new(0, 22, 0, 22), ZIndex = 9 })
 
 	function ui.SetTrophies(n)
-		trophyLabel.Text = formatNumber(n)
+		countTo(trophyLabel, n)
 	end
 	function ui.SetRebirths(n)
-		rebirthLabel.Text = formatNumber(n)
+		countTo(rebirthLabel, n)
 	end
 	function ui.SetFriendBoost(percent)
 		boostLabel.Text = string.format("Friend Boost +%d%%", percent)
@@ -392,7 +435,9 @@ function GameUI.new(playerGui, callbacks)
 			end,
 		})
 		skipBtn.Fill.Color = Style.Rainbow
-		skipBtn.Fill.Rotation = 25
+		Style.onIdle(skipBtn, function(t)
+			skipBtn.Fill.Rotation = 25 + math.sin(t * 1.5) * 25
+		end)
 
 		local rebirthAction = Style.button({
 			Name = "DoRebirth", Parent = p,
@@ -400,8 +445,13 @@ function GameUI.new(playerGui, callbacks)
 			Gradient = Style.Gradients.Lime, Text = "REBIRTH", TextSize = 46,
 			ZIndex = 14, BorderThickness = 4,
 			OnClick = function()
-				if w.CanRebirth and callbacks.OnRebirth then
-					callbacks.OnRebirth()
+				if w.CanRebirth then
+					Style.play("success")
+					if callbacks.OnRebirth then
+						callbacks.OnRebirth()
+					end
+				else
+					Style.play("error")
 				end
 			end,
 		})
@@ -698,7 +748,9 @@ function GameUI.new(playerGui, callbacks)
 			card.LayoutOrder = order
 			if product.Gradient == Style.Rainbow then
 				card.Fill.Color = Style.Rainbow
-				card.Fill.Rotation = 20
+				Style.onIdle(card, function(t)
+					card.Fill.Rotation = 20 + math.sin(t * 1.5) * 25
+				end)
 			end
 			Style.icon({ Parent = card, Image = product.Icon or Style.Icons.Star,
 				Size = UDim2.new(0, 118, 0, 118), AnchorPoint = Vector2.new(0, 0.5),

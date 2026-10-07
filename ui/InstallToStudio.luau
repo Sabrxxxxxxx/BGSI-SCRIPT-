@@ -1,4 +1,4 @@
--- Paste this whole script into Roblox Studio's Command Bar (the Command button in the toolbar) and press Enter.
+-- Paste this whole script into Roblox Studio's Command bar and press Ctrl+Enter.
 -- It creates StarterPlayer.StarterPlayerScripts.GameUI with Main, GameUI and Style.
 
 local sps = game:GetService('StarterPlayer'):WaitForChild('StarterPlayerScripts')
@@ -18,8 +18,71 @@ add('Style', 'ModuleScript', [==[
 -- ScaleType.Fit icons, responsive UIScale) but with the dark-panel look of the reference screens.
 
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
 
 local Style = {}
+
+----------------------------------------------------
+-- Sound effects (swap the ids for your own UI sounds)
+----------------------------------------------------
+Style.SoundIds = {
+	Click = "rbxassetid://6895079853",
+	Hover = "rbxassetid://6895079853",
+}
+local SOUND_SPECS = {
+	hover = { key = "Hover", speed = 1.35, volume = 0.22 },
+	click = { key = "Click", speed = 1.0, volume = 0.5 },
+	open = { key = "Click", speed = 0.78, volume = 0.6 },
+	close = { key = "Click", speed = 1.25, volume = 0.5 },
+	success = { key = "Click", speed = 1.7, volume = 0.7 },
+	error = { key = "Click", speed = 0.55, volume = 0.5 },
+}
+local soundCache = {}
+
+function Style.play(kind)
+	local spec = SOUND_SPECS[kind]
+	if not spec then
+		return
+	end
+	local snd = soundCache[kind]
+	if not snd then
+		snd = Instance.new("Sound")
+		snd.Name = "UI_" .. kind
+		snd.SoundId = Style.SoundIds[spec.key]
+		snd.Volume = spec.volume
+		snd.PlaybackSpeed = spec.speed
+		snd.Parent = SoundService
+		soundCache[kind] = snd
+	end
+	snd.TimePosition = 0
+	snd:Play()
+end
+
+----------------------------------------------------
+-- One shared loop for idle animations (bobbing icons, shine sweeps, ...)
+----------------------------------------------------
+local idleList = {}
+local idleStarted = false
+
+function Style.onIdle(instance, fn)
+	table.insert(idleList, { instance = instance, fn = fn })
+	if idleStarted then
+		return
+	end
+	idleStarted = true
+	RunService.RenderStepped:Connect(function()
+		local t = os.clock()
+		for i = #idleList, 1, -1 do
+			local entry = idleList[i]
+			if not entry.instance:IsDescendantOf(game) then
+				table.remove(idleList, i)
+			else
+				entry.fn(t)
+			end
+		end
+	end)
+end
 
 Style.Font = Enum.Font.GothamBlack
 Style.Checker = "rbxassetid://385956923"
@@ -112,6 +175,22 @@ function Style.label(props)
 end
 
 function Style.icon(props)
+	if not props.NoShadow then
+		local pos = props.Position or UDim2.new(0.5, 0, 0.5, 0)
+		local sh = Instance.new("ImageLabel")
+		sh.Name = (props.Name or "Icon") .. "Shadow"
+		sh.Image = props.Image
+		sh.BackgroundTransparency = 1
+		sh.ImageColor3 = Style.Black
+		sh.ImageTransparency = 0.6
+		sh.ScaleType = Enum.ScaleType.Fit
+		sh.Size = props.Size or UDim2.new(0, 48, 0, 48)
+		sh.Position = UDim2.new(pos.X.Scale, pos.X.Offset + 2, pos.Y.Scale, pos.Y.Offset + 4)
+		sh.AnchorPoint = props.AnchorPoint or Vector2.new(0.5, 0.5)
+		sh.Rotation = props.Rotation or 0
+		sh.ZIndex = (props.ZIndex or 5) - 1
+		sh.Parent = props.Parent
+	end
 	local i = Instance.new("ImageLabel")
 	i.Name = props.Name or "Icon"
 	i.Image = props.Image
@@ -147,6 +226,62 @@ function Style.checker(parent, zIndex, topTransparency, bottomTransparency)
 	return c
 end
 
+-- Inner highlight rim, darker bottom edge and (optionally) a sweeping shine.
+function Style.finish(parent, zIndex, shine)
+	local rim = Instance.new("Frame")
+	rim.Name = "InnerHighlight"
+	rim.Size = UDim2.new(1, -6, 1, -6)
+	rim.Position = UDim2.new(0.5, 0, 0.5, 0)
+	rim.AnchorPoint = Vector2.new(0.5, 0.5)
+	rim.BackgroundTransparency = 1
+	rim.ZIndex = zIndex
+	rim.Active = false
+	rim.Parent = parent
+	Style.stroke(rim, 1.5, Style.White).Transparency = 0.55
+
+	local bottom = Instance.new("Frame")
+	bottom.Name = "Bevel"
+	bottom.Size = UDim2.new(1, 0, 0, 5)
+	bottom.Position = UDim2.new(0, 0, 1, -5)
+	bottom.BackgroundColor3 = Style.Black
+	bottom.BackgroundTransparency = 0.78
+	bottom.BorderSizePixel = 0
+	bottom.ZIndex = zIndex
+	bottom.Parent = parent
+
+	if shine then
+		local sweep = Instance.new("Frame")
+		sweep.Name = "Shine"
+		sweep.Size = UDim2.new(0.22, 0, 2.4, 0)
+		sweep.AnchorPoint = Vector2.new(0.5, 0.5)
+		sweep.Position = UDim2.new(-0.5, 0, 0.5, 0)
+		sweep.Rotation = 20
+		sweep.BackgroundColor3 = Style.White
+		sweep.BackgroundTransparency = 0
+		sweep.BorderSizePixel = 0
+		sweep.ZIndex = zIndex + 1
+		sweep.Active = false
+		sweep.Parent = parent
+		local g = Instance.new("UIGradient")
+		g.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.5, 0.62),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		g.Parent = sweep
+		local offset = math.random() * 4
+		Style.onIdle(sweep, function(t)
+			-- one 0.6s sweep every ~4s
+			local phase = ((t + offset) % 4) / 0.6
+			if phase < 1 then
+				sweep.Position = UDim2.new(-0.2 + phase * 1.4, 0, 0.5, 0)
+			else
+				sweep.Position = UDim2.new(-0.5, 0, 0.5, 0)
+			end
+		end)
+	end
+end
+
 ----------------------------------------------------
 -- Tile: gradient rectangle + black border + checker (non-interactive)
 ----------------------------------------------------
@@ -175,6 +310,7 @@ function Style.tile(props)
 	if props.Checker ~= false then
 		Style.checker(f, (props.ZIndex or 3) + 1)
 	end
+	Style.finish(f, (props.ZIndex or 3) + 1, false)
 	return f
 end
 
@@ -186,7 +322,7 @@ local HOVER = TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Ou
 local PRESS = TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local RELEASE = TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
-function Style.bindButton(btn, hover, press)
+function Style.bindButton(btn, hover, press, hoverRotation)
 	local scale = btn:FindFirstChild("ButtonScale")
 	if not scale then
 		scale = Instance.new("UIScale")
@@ -195,13 +331,20 @@ function Style.bindButton(btn, hover, press)
 	end
 	hover = hover or 1.06
 	press = press or 0.94
+	hoverRotation = hoverRotation or 3
 	btn.MouseEnter:Connect(function()
+		Style.play("hover")
 		TweenService:Create(scale, HOVER, { Scale = hover }):Play()
+		TweenService:Create(btn, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Rotation = hoverRotation,
+		}):Play()
 	end)
 	btn.MouseLeave:Connect(function()
 		TweenService:Create(scale, HOVER, { Scale = 1 }):Play()
+		TweenService:Create(btn, HOVER, { Rotation = 0 }):Play()
 	end)
 	btn.MouseButton1Down:Connect(function()
+		Style.play("click")
 		TweenService:Create(scale, PRESS, { Scale = press }):Play()
 	end)
 	btn.MouseButton1Up:Connect(function()
@@ -233,6 +376,7 @@ function Style.button(props)
 
 	Style.stroke(b, props.BorderThickness or 3, Style.Black)
 	Style.checker(b, (props.ZIndex or 5) + 1)
+	Style.finish(b, (props.ZIndex or 5) + 1, props.Shine ~= false)
 
 	if props.Text then
 		Style.label({
@@ -245,7 +389,7 @@ function Style.button(props)
 		})
 	end
 
-	Style.bindButton(b, props.Hover, props.Press)
+	Style.bindButton(b, props.Hover, props.Press, props.HoverRotation)
 	if props.OnClick then
 		b.Activated:Connect(props.OnClick)
 	end
@@ -268,6 +412,11 @@ function Style.badge(parent, position)
 	c.Parent = b
 	Style.stroke(b, 3, Color3.fromRGB(255, 255, 255))
 	Style.label({ Parent = b, Text = "!", TextSize = 26, ZIndex = 31, StrokeThickness = 2 })
+	local pulse = Instance.new("UIScale")
+	pulse.Parent = b
+	Style.onIdle(b, function(t)
+		pulse.Scale = 1 + 0.12 * math.abs(math.sin(t * 4))
+	end)
 	return b
 end
 
@@ -295,6 +444,8 @@ function Style.closeButton(parent, onClick)
 		TextSize = 40,
 		ZIndex = 40,
 		BorderThickness = 3.5,
+		HoverRotation = 90,
+		Shine = false,
 		OnClick = onClick,
 	})
 	return b
@@ -371,17 +522,43 @@ function Style.window(props)
 		return open
 	end
 
+	local goals = {}
+	local function intro()
+		local index = 0
+		for _, child in ipairs(panel:GetChildren()) do
+			if child:IsA("GuiObject") and child.Name ~= "Checkerboard" then
+				index += 1
+				local goal = goals[child] or child.Position
+				goals[child] = goal
+				child.Position = UDim2.new(goal.X.Scale, goal.X.Offset, goal.Y.Scale, goal.Y.Offset + 26)
+				task.delay(0.04 * index, function()
+					TweenService:Create(child, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+						Position = goal,
+					}):Play()
+				end)
+			end
+		end
+		local headerGoal = goals[header] or header.Position
+		goals[header] = headerGoal
+		header.Position = UDim2.new(headerGoal.X.Scale, headerGoal.X.Offset - 60, headerGoal.Y.Scale, headerGoal.Y.Offset)
+		TweenService:Create(header, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Position = headerGoal,
+		}):Play()
+	end
+
 	function window.Open()
 		if open then
 			return
 		end
 		open = true
+		Style.play("open")
 		local target = Style.deviceScale(props.Camera)
-		scale.Scale = target * 0.75
+		scale.Scale = target * 0.7
 		frame.Visible = true
-		TweenService:Create(scale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		TweenService:Create(scale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 			Scale = target,
 		}):Play()
+		intro()
 		if window.OnOpen then
 			window.OnOpen()
 		end
@@ -392,8 +569,12 @@ function Style.window(props)
 			return
 		end
 		open = false
-		local t = TweenService:Create(scale, TweenInfo.new(0.14, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
-			Scale = scale.Scale * 0.75,
+		Style.play("close")
+		if window.OnClose then
+			window.OnClose()
+		end
+		local t = TweenService:Create(scale, TweenInfo.new(0.16, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+			Scale = scale.Scale * 0.7,
 		})
 		t.Completed:Connect(function()
 			if not open then
@@ -446,6 +627,8 @@ add('GameUI', 'ModuleScript', [==[
 --   ui.SetTrophies(100); ui.SetRebirths(0); ui.SetPets({...}); ui.SetRebirthData({...})
 
 local Style = require(script.Parent.Style)
+local Lighting = game:GetService("Lighting")
+local TweenService = game:GetService("TweenService")
 
 local GameUI = {}
 
@@ -471,6 +654,25 @@ local function formatNumber(n)
 	return (n < 0 and "-" or "") .. s .. suffixes[i]
 end
 GameUI.formatNumber = formatNumber
+
+-- Smoothly counts a label's number up/down to a new value.
+local function countTo(label, target)
+	local from = label:GetAttribute("Value") or 0
+	label:SetAttribute("Value", target)
+	local token = (label:GetAttribute("Token") or 0) + 1
+	label:SetAttribute("Token", token)
+	task.spawn(function()
+		local start = os.clock()
+		while label:GetAttribute("Token") == token do
+			local a = math.min((os.clock() - start) / 0.5, 1)
+			label.Text = formatNumber(from + (target - from) * a)
+			if a >= 1 then
+				break
+			end
+			task.wait()
+		end
+	end)
+end
 
 local function rarityGradient(rarity)
 	local map = {
@@ -521,8 +723,25 @@ function GameUI.new(playerGui, callbacks)
 
 	local ui = { Gui = gui, Windows = {} }
 
+	-- Background blur while any window is open
+	local blur = Lighting:FindFirstChild("MenuBlur") or Instance.new("BlurEffect")
+	blur.Name = "MenuBlur"
+	blur.Size = 0
+	blur.Parent = Lighting
+	local function refreshBlur()
+		local anyOpen = false
+		for _, window in pairs(ui.Windows) do
+			if window.IsOpen() then
+				anyOpen = true
+			end
+		end
+		TweenService:Create(blur, TweenInfo.new(0.25), { Size = anyOpen and 14 or 0 }):Play()
+	end
+
 	local function register(name, window)
 		ui.Windows[name] = window
+		window.OnOpen = refreshBlur
+		window.OnClose = refreshBlur
 		local open = window.Open
 		window.Open = function()
 			for otherName, other in pairs(ui.Windows) do
@@ -605,13 +824,18 @@ function GameUI.new(playerGui, callbacks)
 		StrokeThickness = 4,
 		ZIndex = 10,
 	})
-	Style.icon({
+	local cartIcon = Style.icon({
 		Parent = storeWrapper,
 		Image = Style.Icons.Cart,
 		Size = UDim2.new(0, 96, 0, 96),
 		Position = UDim2.new(0.5, 0, 0, -22),
 		ZIndex = 12,
+		NoShadow = true,
 	})
+	Style.onIdle(cartIcon, function(t)
+		cartIcon.Position = UDim2.new(0.5, 0, 0, -22 + math.sin(t * 2.5) * 4)
+		cartIcon.Rotation = math.sin(t * 1.8) * 5
+	end)
 	ui.StoreBadge = Style.badge(storeWrapper, UDim2.new(1, -12, 0, 10))
 
 	gridTile("Pets", "Pets", Style.Icons.Pet, Style.Gradients.Green, 0, 142, function()
@@ -713,10 +937,10 @@ function GameUI.new(playerGui, callbacks)
 	Style.icon({ Parent = plus, Image = Style.Icons.Plus, Size = UDim2.new(0, 22, 0, 22), ZIndex = 9 })
 
 	function ui.SetTrophies(n)
-		trophyLabel.Text = formatNumber(n)
+		countTo(trophyLabel, n)
 	end
 	function ui.SetRebirths(n)
-		rebirthLabel.Text = formatNumber(n)
+		countTo(rebirthLabel, n)
 	end
 	function ui.SetFriendBoost(percent)
 		boostLabel.Text = string.format("Friend Boost +%d%%", percent)
@@ -822,7 +1046,9 @@ function GameUI.new(playerGui, callbacks)
 			end,
 		})
 		skipBtn.Fill.Color = Style.Rainbow
-		skipBtn.Fill.Rotation = 25
+		Style.onIdle(skipBtn, function(t)
+			skipBtn.Fill.Rotation = 25 + math.sin(t * 1.5) * 25
+		end)
 
 		local rebirthAction = Style.button({
 			Name = "DoRebirth", Parent = p,
@@ -830,8 +1056,13 @@ function GameUI.new(playerGui, callbacks)
 			Gradient = Style.Gradients.Lime, Text = "REBIRTH", TextSize = 46,
 			ZIndex = 14, BorderThickness = 4,
 			OnClick = function()
-				if w.CanRebirth and callbacks.OnRebirth then
-					callbacks.OnRebirth()
+				if w.CanRebirth then
+					Style.play("success")
+					if callbacks.OnRebirth then
+						callbacks.OnRebirth()
+					end
+				else
+					Style.play("error")
 				end
 			end,
 		})
@@ -1128,7 +1359,9 @@ function GameUI.new(playerGui, callbacks)
 			card.LayoutOrder = order
 			if product.Gradient == Style.Rainbow then
 				card.Fill.Color = Style.Rainbow
-				card.Fill.Rotation = 20
+				Style.onIdle(card, function(t)
+					card.Fill.Rotation = 20 + math.sin(t * 1.5) * 25
+				end)
 			end
 			Style.icon({ Parent = card, Image = product.Icon or Style.Icons.Star,
 				Size = UDim2.new(0, 118, 0, 118), AnchorPoint = Vector2.new(0, 0.5),
