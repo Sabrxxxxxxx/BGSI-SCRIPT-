@@ -93,15 +93,18 @@ Style.Icons = {
 	AutoClick = "rbxassetid://95896876064200",  -- Auto_Open_1st
 	Sword = "rbxassetid://82457981839848",      -- Sword_1st
 	Plus = "rbxassetid://74804085353767",       -- Plus_White
+	Shoe = "rbxassetid://135273757224572",      -- Blue_Shoe_1st
+	Muscle = "rbxassetid://119465909699698",    -- Arm_1st
 }
 
 -- Gradients: { top, bottom } (rotated 90 so they run top -> bottom)
 Style.Gradients = {
-	Orange = { Color3.fromRGB(255, 214, 20), Color3.fromRGB(255, 130, 0) },
+	Orange = { Color3.fromRGB(255, 238, 22), Color3.fromRGB(255, 128, 18) },
 	Yellow = { Color3.fromRGB(255, 236, 40), Color3.fromRGB(255, 176, 0) },
-	Green = { Color3.fromRGB(120, 235, 40), Color3.fromRGB(30, 190, 20) },
+	Green = { Color3.fromRGB(80, 255, 75), Color3.fromRGB(30, 237, 20) },
+	YellowGreen = { Color3.fromRGB(238, 250, 30), Color3.fromRGB(5, 252, 0) },
 	Lime = { Color3.fromRGB(190, 255, 30), Color3.fromRGB(100, 225, 0) },
-	Red = { Color3.fromRGB(255, 70, 70), Color3.fromRGB(225, 10, 20) },
+	Red = { Color3.fromRGB(255, 52, 52), Color3.fromRGB(232, 10, 14) },
 	Purple = { Color3.fromRGB(190, 90, 255), Color3.fromRGB(120, 30, 220) },
 	Blue = { Color3.fromRGB(70, 200, 255), Color3.fromRGB(30, 120, 240) },
 	Cyan = { Color3.fromRGB(150, 235, 255), Color3.fromRGB(70, 190, 250) },
@@ -110,18 +113,27 @@ Style.Gradients = {
 	Gold = { Color3.fromRGB(255, 214, 70), Color3.fromRGB(235, 160, 10) },
 	RedOrange = { Color3.fromRGB(255, 80, 40), Color3.fromRGB(255, 150, 20) },
 	Grey = { Color3.fromRGB(205, 210, 218), Color3.fromRGB(135, 143, 156) },
+	ItemGrey = { Color3.fromRGB(200, 208, 221), Color3.fromRGB(150, 158, 175) },
+	SlotGrey = { Color3.fromRGB(128, 128, 128), Color3.fromRGB(96, 96, 96) },
+	LimeGreen = { Color3.fromRGB(240, 245, 0), Color3.fromRGB(20, 235, 0) },
 	DarkGrey = { Color3.fromRGB(118, 124, 132), Color3.fromRGB(78, 84, 92) },
 	Navy = { Color3.fromRGB(52, 58, 92), Color3.fromRGB(26, 30, 56) },
 }
 
+-- Reference order, left to right: crimson, magenta, violet, blue, teal, green, lime, yellow, orange.
+-- Use with Fill.Rotation = 0 (horizontal); buttons/tiles default to 90 (vertical).
 local RAINBOW = ColorSequence.new({
-	ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 30, 70)),
-	ColorSequenceKeypoint.new(0.20, Color3.fromRGB(255, 150, 0)),
-	ColorSequenceKeypoint.new(0.38, Color3.fromRGB(255, 240, 0)),
-	ColorSequenceKeypoint.new(0.55, Color3.fromRGB(40, 230, 60)),
-	ColorSequenceKeypoint.new(0.72, Color3.fromRGB(0, 200, 255)),
-	ColorSequenceKeypoint.new(0.88, Color3.fromRGB(110, 60, 255)),
-	ColorSequenceKeypoint.new(1.00, Color3.fromRGB(230, 0, 230)),
+	ColorSequenceKeypoint.new(0.00, Color3.fromRGB(223, 0, 40)),
+	ColorSequenceKeypoint.new(0.12, Color3.fromRGB(213, 0, 115)),
+	ColorSequenceKeypoint.new(0.22, Color3.fromRGB(204, 0, 215)),
+	ColorSequenceKeypoint.new(0.30, Color3.fromRGB(112, 20, 238)),
+	ColorSequenceKeypoint.new(0.38, Color3.fromRGB(28, 36, 252)),
+	ColorSequenceKeypoint.new(0.46, Color3.fromRGB(10, 150, 190)),
+	ColorSequenceKeypoint.new(0.55, Color3.fromRGB(20, 225, 50)),
+	ColorSequenceKeypoint.new(0.65, Color3.fromRGB(125, 254, 55)),
+	ColorSequenceKeypoint.new(0.78, Color3.fromRGB(240, 248, 40)),
+	ColorSequenceKeypoint.new(0.90, Color3.fromRGB(253, 190, 40)),
+	ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 110, 25)),
 })
 Style.Rainbow = RAINBOW
 
@@ -162,9 +174,16 @@ function Style.label(props)
 	l.AnchorPoint = props.AnchorPoint or Vector2.new(0, 0)
 	l.ZIndex = props.ZIndex or 5
 	l.Parent = props.Parent
-	local s = Style.stroke(l, props.StrokeThickness or math.max(2, (props.TextSize or 24) / 9), props.StrokeColor,
+	local s = Style.stroke(l, props.StrokeThickness or math.max(1.8, (props.TextSize or 24) / 11), props.StrokeColor,
 		Enum.ApplyStrokeMode.Contextual)
 	s.Name = "TextStroke"
+	if props.TextGradient then
+		local tg = Instance.new("UIGradient")
+		tg.Name = "TextGradient"
+		tg.Color = toSequence(props.TextGradient)
+		tg.Rotation = 90
+		tg.Parent = l
+	end
 	return l
 end
 
@@ -231,14 +250,14 @@ function Style.finish(parent, zIndex, shine)
 	rim.ZIndex = zIndex
 	rim.Active = false
 	rim.Parent = parent
-	Style.stroke(rim, 1.5, Style.White).Transparency = 0.55
+	Style.stroke(rim, 1.5, Style.White).Transparency = 0.85
 
 	local bottom = Instance.new("Frame")
 	bottom.Name = "Bevel"
 	bottom.Size = UDim2.new(1, 0, 0, 5)
 	bottom.Position = UDim2.new(0, 0, 1, -5)
 	bottom.BackgroundColor3 = Style.Black
-	bottom.BackgroundTransparency = 0.78
+	bottom.BackgroundTransparency = 0.7
 	bottom.BorderSizePixel = 0
 	bottom.ZIndex = zIndex
 	bottom.Parent = parent
@@ -368,7 +387,7 @@ function Style.button(props)
 	g.Rotation = 90
 	g.Parent = b
 
-	Style.stroke(b, props.BorderThickness or 3, Style.Black)
+	Style.stroke(b, props.BorderThickness or 2.5, Style.Black)
 	Style.checker(b, (props.ZIndex or 5) + 1)
 	Style.finish(b, (props.ZIndex or 5) + 1, props.Shine ~= false)
 
@@ -444,23 +463,27 @@ function Style.closeButton(parent, onClick, size, position)
 		Position = position or UDim2.new(1, 18, 0, 6),
 		Gradient = Style.Gradients.Red,
 		Text = "X",
-		TextSize = math.floor(size * 0.8),
+		TextSize = math.floor(size * 0.66),
 		ZIndex = 40,
-		BorderThickness = 3.5,
+		BorderThickness = 2.5,
 		HoverRotation = 90,
 		Shine = false,
 		OnClick = onClick,
 	})
+	b.Label.TextStroke.Thickness = 2
 	return b
 end
 
 function Style.window(props)
 	-- props: Name, Size (UDim2 offsets), Parent (ScreenGui), Title, TitleIcon, HeaderGradient,
-	--        HeaderWidth, Camera, Position
+	--        HeaderWidth, HeaderHeight, HeaderX, Camera, Position, AnchorPoint, PanelTop (header overhang, 30),
+	--        PanelStroke, HeaderBorder, PanelColor, PanelTransparency, NoRim,
+	--        TitleSize, TitleStroke, TitleX, TitleIconSize, TitleIconX, TitleGradient, CloseSize, ClosePosition
+	local top = props.PanelTop or 30
 	local frame = Instance.new("Frame")
 	frame.Name = props.Name
 	frame.Size = props.Size
-	frame.AnchorPoint = Vector2.new(0.5, 0.5)
+	frame.AnchorPoint = props.AnchorPoint or Vector2.new(0.5, 0.5)
 	frame.Position = props.Position or UDim2.new(0.5, 0, 0.5, 0)
 	frame.BackgroundTransparency = 1
 	frame.Visible = false
@@ -474,48 +497,65 @@ function Style.window(props)
 
 	local panel = Instance.new("Frame")
 	panel.Name = "Panel"
-	panel.Size = UDim2.new(1, 0, 1, -34)
-	panel.Position = UDim2.new(0, 0, 0, 34)
-	panel.BackgroundColor3 = Style.PanelColor
+	panel.Size = UDim2.new(1, 0, 1, -top)
+	panel.Position = UDim2.new(0, 0, 0, top)
+	panel.BackgroundColor3 = props.PanelColor or Style.PanelColor
 	panel.BackgroundTransparency = props.PanelTransparency or 0.05
 	panel.BorderSizePixel = 0
 	panel.ClipsDescendants = true
 	panel.ZIndex = 11
 	panel.Parent = frame
-	Style.stroke(panel, 4, Style.Black)
+	Style.stroke(panel, props.PanelStroke or 2.5, Style.Black)
 	Style.checker(panel, 12, 0.95, 0.88)
+	if not props.NoRim then
+		-- thin grey inner rim of the dark window body
+		local rim = Instance.new("Frame")
+		rim.Name = "Rim"
+		rim.BackgroundTransparency = 1
+		rim.AnchorPoint = Vector2.new(0.5, 0.5)
+		rim.Position = UDim2.new(0.5, 0, 0.5, 0)
+		rim.Size = UDim2.new(1, -6, 1, -6)
+		rim.ZIndex = 12
+		rim.Active = false
+		rim.Parent = panel
+		Style.stroke(rim, 3, Color3.fromRGB(70, 72, 76))
+	end
 
+	local headerHeight = props.HeaderHeight or 58
 	local header = Style.tile({
 		Name = "Header",
 		Parent = frame,
-		Size = UDim2.new(0, props.HeaderWidth or 250, 0, props.HeaderHeight or 64),
+		Size = UDim2.new(0, props.HeaderWidth or 250, 0, headerHeight),
 		Position = UDim2.new(0, props.HeaderX or -20, 0, 0),
 		Gradient = props.HeaderGradient or Style.Gradients.Orange,
 		ZIndex = 30,
-		BorderThickness = 4,
+		BorderThickness = props.HeaderBorder or 3,
 	})
 	local titleX = 14
 	if props.TitleIcon then
+		local iconSize = props.TitleIconSize or 48
 		Style.icon({
 			Parent = header,
 			Image = props.TitleIcon,
-			Size = UDim2.new(0, 56, 0, 56),
+			Size = UDim2.new(0, iconSize, 0, iconSize),
 			AnchorPoint = Vector2.new(0, 0.5),
-			Position = UDim2.new(0, 10, 0.5, 0),
+			Position = UDim2.new(0, props.TitleIconX or 6, 0.5, 0),
 			ZIndex = 34,
 		})
-		titleX = 72
+		titleX = props.TitleX or 60
 	end
 	Style.label({
 		Parent = header,
 		Name = "Title",
 		Text = props.Title,
-		TextSize = props.TitleSize or 42,
+		TextSize = props.TitleSize or 38,
 		XAlignment = Enum.TextXAlignment.Left,
 		Position = UDim2.new(0, titleX, 0, 0),
 		Size = UDim2.new(1, -titleX - 8, 1, 0),
 		ZIndex = 34,
-		StrokeThickness = 4,
+		StrokeThickness = props.TitleStroke or 2.8,
+		StrokeColor = props.TitleStrokeColor,
+		TextGradient = props.TitleGradient or { Color3.fromRGB(255, 255, 255), Color3.fromRGB(215, 245, 235) },
 	})
 
 	local window = { Frame = frame, Panel = panel, Header = header, Scale = scale }

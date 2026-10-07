@@ -38,6 +38,7 @@ ui = GameUI.new(playerGui, {
 	OnTeleport = function(worldId) print("Teleport to world", worldId) end,
 	OnRewards = function() print("Open rewards") end,
 	OnStatBoost = function(index) print("Stat boost", index) end,
+	OnAutoClicker = function(paid, on) print("Auto clicker", paid and "paid" or "free", on and "on" or "off") end,
 	OnPurchase = function(product)
 		-- Real game: MarketplaceService:PromptProductPurchase(player, product.ProductId)
 		-- or PromptGamePassPurchase for game passes.
@@ -82,23 +83,27 @@ ui.SetItems({
 })
 ui.SetEquipSlots({ false, false, { Locked = true, Requirement = "5 Rebirths" } })
 
--- Worlds (set Image = "rbxassetid://..." to show a preview picture)
+-- Worlds (set Image = "rbxassetid://..." to show a scene preview picture; the gradients are muted fallbacks)
 ui.SetWorlds({
-	{ Id = 1, Name = "World 1", Gradient = Style.Gradients.Green, Unlocked = true },
-	{ Id = 2, Name = "World 2", Gradient = Style.Gradients.Blue, Unlocked = false, Requirement = "Beat World 1" },
-	{ Id = 3, Name = "World 3", Gradient = Style.Gradients.RedOrange, Unlocked = false, Requirement = "Beat World 2" },
+	{ Id = 1, Name = "World 1", Unlocked = true,
+		Gradient = { Color3.fromRGB(140, 190, 215), Color3.fromRGB(95, 150, 70) } },
+	{ Id = 2, Name = "World 2", Unlocked = false, Requirement = "Beat World 1",
+		Gradient = { Color3.fromRGB(70, 110, 120), Color3.fromRGB(150, 110, 70) } },
+	{ Id = 3, Name = "World 3", Unlocked = false, Requirement = "Beat World 2",
+		Gradient = { Color3.fromRGB(70, 50, 40), Color3.fromRGB(215, 90, 25) } },
 })
 
 -- Shop
 ui.AddFeaturedPets({
 	{ Name = "Spider Rex", Stock = "799/1K LEFT", Icon = "rbxassetid://104095781189267", Footer = "+3K / Damage",
-		Price = 499, Gradient = Style.Gradients.Pink, ProductId = 21 },
-	{ Name = "Titan", Stock = "416/1K LEFT", Icon = "rbxassetid://136641367912532", Footer = "ALWAYS 100% BETTER",
-		Price = 299, Gradient = Style.Gradients.RedOrange, ProductId = 22 },
+		Price = 499, Gradient = { Color3.fromRGB(255, 100, 245), Color3.fromRGB(205, 25, 60) }, ProductId = 21 },
+	{ Name = "Titan", Stock = "416/1K LEFT", Icon = "rbxassetid://136641367912532",
+		Footer = '<font color="#c8102e">ALWAYS</font> <font color="#2a6cff">100%</font> <font color="#c8ff20">BETTER</font>',
+		Price = 299, Gradient = { Color3.fromRGB(238, 22, 14), Color3.fromRGB(252, 110, 6) }, ProductId = 22 },
 })
 ui.AddBundle({
 	Name = "Starter Pack", Price = 199, OldPrice = 490, ProductId = 23,
-	Items = { { Icon = I.Trophy, Label = "Wins x2" }, { Icon = I.Rebirth, Label = "+1 Rebirth" }, { Icon = I.Star, Label = "Level" } },
+	Items = { { Icon = I.Trophy, Label = "1,5K Wins" }, { Icon = I.Rebirth, Label = "+1 Rebirth" }, { Icon = I.Pet, Label = "Fossil" } },
 })
 ui.AddHeading("Limited")
 ui.AddCrate({
@@ -106,8 +111,8 @@ ui.AddCrate({
 	Slots = {
 		{ Top = "+75%", Sub = "All Stats", Icon = I.Trophy, Percent = "50%", Gradient = Style.Gradients.Green },
 		{ Top = "+100%", Sub = "All Stats", Icon = I.Star, Percent = "35%", Gradient = Style.Gradients.Yellow },
-		{ Top = "+125%", Sub = "All Stats", Icon = I.Heart, Percent = "13%", Gradient = Style.Gradients.Pink },
-		{ Top = "+200%", Sub = "All Stats", Icon = "rbxassetid://93317929602850", Percent = "1%", Gradient = Style.Gradients.RedOrange },
+		{ Top = "+125%", Sub = "All Stats", Icon = I.Heart, Percent = "13%", Gradient = { Color3.fromRGB(255, 75, 125), Color3.fromRGB(240, 20, 80) } },
+		{ Top = "+200%", Sub = "All Stats", Icon = "rbxassetid://93317929602850", Percent = "1%", Gradient = { Color3.fromRGB(255, 108, 72), Color3.fromRGB(240, 48, 20) } },
 		{ Top = "+500%", Sub = "All Stats", Icon = "rbxassetid://120835265944542", Percent = "0.1%", Gradient = Style.Gradients.Purple },
 	},
 	Buttons = {
@@ -117,7 +122,7 @@ ui.AddCrate({
 	},
 })
 ui.AddCrate({
-	Name = "Lava Egg", Icon = nil, Sunburst = true, Gradient = Style.Gradients.RedOrange,
+	Name = "Lava Egg", Icon = nil, Sunburst = true, Gradient = { Color3.fromRGB(246, 135, 42), Color3.fromRGB(228, 104, 18) },
 	Slots = {
 		{ Top = "Lava Monkey", Icon = I.Pet, Percent = "34.6%", Gradient = Style.Gradients.Blue },
 		{ Top = "Hellhound", Icon = I.Pet, Percent = "28%", Gradient = Style.Gradients.Purple },
@@ -134,4 +139,4 @@ ui.AddProduct({ Name = "Auto Clicker", Description = "Gain damage automatically"
 ui.AddProduct({ Name = "X2 Wins", Description = "Earn Twice More Wins! (ALL TYPES)", Price = 99, Tag = "X2",
 	Icon = I.Trophy, Gradient = Style.Gradients.Orange, ProductId = 43 })
 ui.AddProduct({ Name = "X2 Items Chance", Description = "Get twice more Eggs luck", Price = 249, Tag = "X2",
-	Icon = I.Chest, Gradient = Style.Gradients.Cyan, ProductId = 44 })
+	Icon = I.Chest, Gradient = { Color3.fromRGB(82, 245, 250), Color3.fromRGB(80, 125, 255) }, ProductId = 44 })
