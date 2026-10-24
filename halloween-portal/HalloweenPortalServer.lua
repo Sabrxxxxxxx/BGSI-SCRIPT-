@@ -576,7 +576,7 @@ local function buildSite(base, rng)
 	local function at(x, y, z)
 		return base * CFrame.new(x, y, z)
 	end
-	local function world(v)
+	local function toWorld(v)
 		return (base * CFrame.new(v)).Position
 	end
 
@@ -599,8 +599,8 @@ local function buildSite(base, rng)
 	for _, s in { -1, 1 } do
 		local function branch(points, widths)
 			for i = 1, #points - 1 do
-				local a = world(points[i] * Vector3.new(s, 1, 1))
-				local b = world(points[i + 1] * Vector3.new(s, 1, 1))
+				local a = toWorld(points[i] * Vector3.new(s, 1, 1))
+				local b = toWorld(points[i + 1] * Vector3.new(s, 1, 1))
 				limb(site, "Branch", a, b, widths[i], table.clone(bark))
 				if i > 1 then
 					newPart(site, "Knot", {
@@ -731,7 +731,7 @@ local function buildSite(base, rng)
 			spokes[i] = Vector3.new(math.cos(a), math.sin(a), 0)
 		end
 		local function thread(a, b)
-			limb(site, "Cobweb", world(a), world(b), 0.06, ghostly({
+			limb(site, "Cobweb", toWorld(a), toWorld(b), 0.06, ghostly({
 				Material = Enum.Material.SmoothPlastic,
 				Color = COLORS.Web,
 				Transparency = 0.25,
