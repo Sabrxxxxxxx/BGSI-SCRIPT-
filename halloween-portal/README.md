@@ -2,10 +2,12 @@
 
 A glowing build spot appears near your spawn with a **Press E to build** prompt.
 
-- **Build:** pressing E makes the portal build itself. Stone ring pieces burst out of the ground one by one, land, flash, and light up orange and purple. Then the middle swirls open.
+- **Build:** pressing E makes the stone archway build itself. Stones burst out of the ground one by one, bottom first, land, and their inner edges flash and glow purple. Then the purple vortex swirls open in the middle, banners with a ghost on them appear on both pillars, and the candles and lanterns light.
+- **The site:** the portal stands on three stone steps between two dead trees, with lanterns hanging on chains, candles, jack-o'-lanterns (a big one on top of the arch), a skull, cobwebs, rocks and grass.
+- **The fence:** a tall iron graveyard fence surrounds the portal courtyard. Its gate stands open. Once you walk through it, the gate creaks, then slams shut behind you with a camera shake and a burst of dust. It creaks open again after 12 seconds. Only you see it shut (and only you are blocked), so other players can still come in.
 - **Travel:** walking into the portal zooms the camera into it. The screen swirls purple and orange, fades to black, then fades back in on the Halloween island with a big **Halloween World** title.
 - **Ghosts:** see-through ghosts drift and bob around the island and the portal, slowly waving their arms.
-- **Pumpkins:** jack-o'-lanterns with carved glowing faces bounce, wobble and flicker like candles.
+- **Pumpkins:** jack-o'-lanterns with carved glowing faces bounce, wobble and flicker like candles. The ones on the arch, steps and gate pillars sit still and just flicker.
 
 You don't need any models, decals or other assets. Everything is built from parts by the scripts.
 
@@ -19,7 +21,7 @@ You don't need any models, decals or other assets. Everything is built from part
    - In the Explorer, open **StarterPlayer**, hover over **StarterPlayerScripts**, click **+** and pick **LocalScript**.
    - Rename it `HalloweenPortalClient`.
    - Delete the starter line and paste in everything from [`HalloweenPortalClient.lua`](HalloweenPortalClient.lua).
-3. Press **Play**. The glowing pad is about 40 studs in front of your SpawnLocation. Walk onto it, press **E**, wait for the portal to open, then walk into it.
+3. Press **Play**. Walk through the fence gate about 26 studs in front of your SpawnLocation (it slams shut behind you), onto the glowing pad, press **E**, wait for the portal to open, then walk into it.
 
 It must be a **Script** in ServerScriptService and a **LocalScript** in StarterPlayerScripts. If you swap them, nothing happens.
 
@@ -32,8 +34,8 @@ The `CONFIG` table at the top of `HalloweenPortalServer` controls the main setti
 | `BuildSpotDistance` | How far in front of the spawn the build pad appears. |
 | `IslandCenter` | Where the Halloween island floats. The default is high up and 3000 studs away. Move it if your map is that big. |
 | `WorldTitle` | The title shown when you arrive. |
-| `PortalRadius`, `RingPieces` | Portal size and how many ring pieces fly in. |
 | `PieceDelay`, `FlyTime`, `LightTime`, `OpenTime` | Build animation timing in seconds. |
+| `GateReopenTime` | How long the gate stays shut behind you. |
 | `IslandGhosts`, `IslandPumpkins`, `PortalGhosts` | How many ghosts and pumpkins to spawn. |
 
 **Choose the build spot yourself:** add a small Part named `PortalBuildSpot` to Workspace. Place it on the ground and turn its front face toward where players walk in from. The script hides it and builds the pad there. The portal goes up just behind the pad.

@@ -152,7 +152,7 @@ local function updatePumpkin(pumpkin, t, cameraPosition)
 
 	local beat = t * pumpkin.speed + pumpkin.phase
 	local hop = math.abs(math.sin(beat)) * pumpkin.hop
-	local wobble = CFrame.Angles(math.sin(beat * 0.9) * 0.1, 0, math.cos(beat * 1.1) * 0.12)
+	local wobble = CFrame.Angles(math.sin(beat * 0.9) * 0.1 * pumpkin.wobble, 0, math.cos(beat * 1.1) * 0.12 * pumpkin.wobble)
 	local pivot = pumpkin.base * CFrame.new(0, hop, 0) * wobble
 	for i, part in pumpkin.parts do
 		queueMove(part, pivot * pumpkin.offsets[i])
@@ -178,6 +178,7 @@ local function setupPumpkin(model)
 		speed = model:GetAttribute("Speed") or 2.6,
 		phase = model:GetAttribute("Phase") or 0,
 		hop = model:GetAttribute("Hop") or 0.8,
+		wobble = model:GetAttribute("Wobble") or 1,
 		parts = {},
 		offsets = {},
 		glow = {},
@@ -218,7 +219,9 @@ local function spinSwirl(portal, t, open)
 	local eased = TweenService:GetValue(open, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 	local spin = t * 1.1 + (1 - eased) * 5 -- whips round faster while opening
 	for _, bit in portal.swirl do
-		queueMove(bit.part, portal.center * CFrame.Angles(0, 0, bit.angle + spin) * CFrame.new(bit.radius * eased, 0, 0))
+		local angle = bit.angle + spin
+		local radius = bit.radius * eased
+		queueMove(bit.part, portal.center * CFrame.new(math.cos(angle) * radius * portal.swirlX, math.sin(angle) * radius * portal.swirlY, 0) * CFrame.Angles(0, 0, angle))
 		if open < 1 then
 			bit.part.Transparency = 1 - open * (1 - bit.final)
 		end
@@ -330,6 +333,8 @@ local function setupPortal(model)
 		coreBrightness = coreLight and coreLight.Brightness or 0,
 		pieces = {},
 		swirl = {},
+		swirlX = model:GetAttribute("SwirlScaleX") or 1,
+		swirlY = model:GetAttribute("SwirlScaleY") or 1,
 		settled = false,
 		update = updatePortal,
 	}
@@ -389,6 +394,192 @@ track("HalloweenGhost", setupGhost)
 track("HalloweenPumpkin", setupPumpkin)
 track("HalloweenPortal", setupPortal)
 
+---------------------------------------------------------------- candles and lanterns
+
+-- Candle flames and lantern glass flicker once the server marks them Lit.
+local flames = {} -- [part] = { light, brightness, size, phase, glass }
+
+local function addFlame(part)
+	if not part:IsA("BasePart") or flames[part] then
+		return
+	end
+	local light = part:FindFirstChildWhichIsA("PointLight")
+	flames[part] = {
+		light = light,
+		brightness = light and light.Brightness or 0,
+		size = part.Size,
+		phase = math.random() * 100,
+		glass = part:GetAttribute("LitColor") ~= nil,
+	}
+end
+CollectionService:GetInstanceAddedSignal("HalloweenFlame"):Connect(addFlame)
+CollectionService:GetInstanceRemovedSignal("HalloweenFlame"):Connect(function(part)
+	flames[part] = nil
+end)
+for _, part in CollectionService:GetTagged("HalloweenFlame") do
+	addFlame(part)
+end
+
+local function updateFlames(t, cameraPosition)
+	for part, flame in flames do
+		if not part.Parent then
+			flames[part] = nil
+		elseif part:GetAttribute("Lit") and (part.Position - cameraPosition).Magnitude < ANIMATE_DISTANCE then
+			local noise = math.noise(t * 5, flame.phase) + 0.5 * math.noise(t * 13, flame.phase + 7)
+			local strength = math.clamp(0.7 + noise, 0.35, 1.1)
+			if flame.light then
+				flame.light.Brightness = flame.brightness * strength
+			end
+			if not flame.glass then
+				part.Size = Vector3.new(flame.size.X, flame.size.Y * (0.8 + 0.3 * strength), flame.size.Z)
+			end
+			part.Color = THEME.GlowDim:Lerp(THEME.GlowBright, math.clamp(strength, 0, 1))
+		end
+	end
+end
+
+---------------------------------------------------------------- the gate
+
+-- When you walk into the courtyard the gate slams shut behind you, then creaks
+-- open again a little later. This only changes your own view and collisions,
+-- so other players can still come through.
+local SLAM_TIME = 0.9
+local BOUNCE_TIME = 0.45
+local REOPEN_TIME = 2.2
+local gates = {} -- [GateId] = { leaves, frame, state, changedAt, ... }
+
+local shakeUntil, shakeLength, shakeStrength = 0, 1, 0
+RunService:BindToRenderStep("HalloweenGateShake", Enum.RenderPriority.Camera.Value + 1, function()
+	local left = shakeUntil - os.clock()
+	local camera = Workspace.CurrentCamera
+	if left > 0 and camera then
+		local amount = shakeStrength * left / shakeLength
+		camera.CFrame *= CFrame.new((math.random() - 0.5) * amount, (math.random() - 0.5) * amount, 0)
+	end
+end)
+
+local function addGateLeaf(model)
+	local hinge = model:GetAttribute("Hinge")
+	local openAngle = model:GetAttribute("OpenAngle")
+	local frame = model:GetAttribute("GateFrame")
+	local id = model:GetAttribute("GateId")
+	if not (model:IsA("Model") and hinge and openAngle and frame and id) then
+		return
+	end
+	local gate = gates[id]
+	if not gate then
+		gate = {
+			leaves = {},
+			frame = frame,
+			depth = model:GetAttribute("CourtDepth") or 40,
+			halfWidth = model:GetAttribute("CourtHalfWidth") or 25,
+			reopenAfter = model:GetAttribute("ReopenAfter") or 12,
+			state = "open",
+			changedAt = 0,
+			seenOutside = false,
+		}
+		gates[id] = gate
+	end
+	local openFrame = hinge * CFrame.Angles(0, openAngle, 0)
+	local leaf = { hinge = hinge, openAngle = openAngle, parts = {}, offsets = {} }
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") then
+			table.insert(leaf.parts, part)
+			table.insert(leaf.offsets, openFrame:ToObjectSpace(part.CFrame))
+		end
+	end
+	gate.leaves[model] = leaf
+	gate.lastAmount = nil
+end
+CollectionService:GetInstanceAddedSignal("HalloweenGate"):Connect(addGateLeaf)
+for _, model in CollectionService:GetTagged("HalloweenGate") do
+	addGateLeaf(model)
+end
+
+-- 0 = standing open, 1 = shut.
+local function gateClosedAmount(gate, clock)
+	local elapsed = clock - gate.changedAt
+	if gate.state == "closing" then
+		if elapsed < SLAM_TIME then
+			return (elapsed / SLAM_TIME) ^ 2.2 -- a slow creak that speeds into a slam
+		end
+		local u = math.min((elapsed - SLAM_TIME) / BOUNCE_TIME, 1)
+		return 1 - 0.07 * math.exp(-5 * u) * math.abs(math.sin(u * math.pi * 2.5)) -- rattles against the latch
+	elseif gate.state == "closed" then
+		return 1
+	elseif gate.state == "opening" then
+		return 1 - TweenService:GetValue(math.min(elapsed / REOPEN_TIME, 1), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+	end
+	return 0
+end
+
+local function setGateState(gate, state, clock)
+	gate.state = state
+	gate.changedAt = clock
+end
+
+local function updateGates(clock)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	for _, gate in gates do
+		for model in gate.leaves do
+			if not model.Parent then
+				gate.leaves[model] = nil
+			end
+		end
+
+		if root then
+			local p = gate.frame:PointToObjectSpace(root.Position)
+			if p.Z < -1 then
+				gate.seenOutside = true
+			end
+			local inCourtyard = p.Z > 9 and p.Z < gate.depth and math.abs(p.X) < gate.halfWidth and math.abs(p.Y) < 40
+			if gate.state == "open" and gate.seenOutside and inCourtyard then
+				gate.seenOutside = false
+				gate.slammed = false
+				setGateState(gate, "closing", clock)
+			end
+		end
+
+		local elapsed = clock - gate.changedAt
+		if gate.state == "closing" then
+			if not gate.slammed and elapsed >= SLAM_TIME then
+				gate.slammed = true
+				dustPoint.WorldPosition = (gate.frame * CFrame.new(0, 0.5, 0)).Position
+				dust:Emit(40)
+				shakeLength, shakeStrength = 0.35, 0.7
+				shakeUntil = clock + shakeLength
+			end
+			if elapsed >= SLAM_TIME + BOUNCE_TIME then
+				setGateState(gate, "closed", clock)
+			end
+		elseif gate.state == "closed" and elapsed >= gate.reopenAfter then
+			setGateState(gate, "opening", clock)
+		elseif gate.state == "opening" and elapsed >= REOPEN_TIME then
+			setGateState(gate, "open", clock)
+		end
+
+		local amount = gateClosedAmount(gate, clock)
+		if amount ~= gate.lastAmount then
+			gate.lastAmount = amount
+			for _, leaf in gate.leaves do
+				local frame = leaf.hinge * CFrame.Angles(0, leaf.openAngle * (1 - amount), 0)
+				for i, part in leaf.parts do
+					queueMove(part, frame * leaf.offsets[i])
+				end
+			end
+		end
+	end
+end
+
+player.CharacterAdded:Connect(function()
+	-- Respawned: the gate is open again.
+	for _, gate in gates do
+		gate.seenOutside = false
+		setGateState(gate, "open", os.clock())
+	end
+end)
+
 RunService.Heartbeat:Connect(function()
 	local camera = Workspace.CurrentCamera
 	if not camera then
@@ -404,6 +595,8 @@ RunService.Heartbeat:Connect(function()
 			tracked[model] = nil
 		end
 	end
+	updateFlames(t, cameraPosition)
+	updateGates(os.clock())
 	if #moveParts > 0 then
 		Workspace:BulkMoveTo(moveParts, moveCFrames, Enum.BulkMoveMode.FireCFrameChanged)
 		table.clear(moveParts)
