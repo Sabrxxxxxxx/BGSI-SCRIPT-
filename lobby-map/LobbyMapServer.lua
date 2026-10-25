@@ -1,11 +1,12 @@
 -- LobbyMapServer (Script)
 -- Put this in ServerScriptService.
 --
--- Builds a Halloween duel lobby floating on the sea: a checkered deck with a
--- fence, lamps, dead trees and pumpkins, rows of 2-seat duel tables and a
--- 6-seat party table (each shows how many seats are taken), decorative booths,
--- swings, and four leaderboards (wins, streaks, cash, Robux spent) that save
--- and rank players across servers.
+-- Builds a Halloween duel lobby floating on the sea, in classic studded bricks:
+-- a checkered deck with a fence, string lights, lamps, dead trees and pumpkins,
+-- rows of 2-seat duel tables and a 6-seat party table (a light per seat shows
+-- who is sitting), booths marked with brick icons, swings, and four
+-- leaderboards (wins, streaks, cash, Robux spent) that save and rank players
+-- across servers. The only text anywhere is the names and numbers on the boards.
 --
 -- Other scripts can change a player's stats by editing the values the script
 -- creates: player.leaderstats.Wins / .Streak / .Cash, and
@@ -17,7 +18,6 @@ local DataStoreService = game:GetService("DataStoreService")
 local Lighting = game:GetService("Lighting")
 
 local CONFIG = {
-	Title = "DUEL LOBBY", -- the big sign at the back of the deck
 	Origin = Vector3.new(0, 0, 0), -- centre of the deck, at sea level
 	HideBaseplate = true, -- hides a part named "Baseplate" so the sea shows
 	DeckSize = Vector2.new(160, 144), -- studs, x by z
@@ -41,16 +41,20 @@ local COLORS = {
 	Lamp = Color3.fromRGB(255, 200, 80),
 	LampPurple = Color3.fromRGB(170, 90, 255),
 	Seat = Color3.fromRGB(60, 58, 70),
+	SeatEmpty = Color3.fromRGB(90, 90, 100),
+	SeatTaken = Color3.fromRGB(80, 255, 120),
+	PartyRim = Color3.fromRGB(170, 90, 255),
+	FullRim = Color3.fromRGB(255, 150, 40),
 	Panel = Color3.fromRGB(18, 16, 34),
 	Text = Color3.fromRGB(245, 245, 255),
 }
 
 -- The four boards, left to right as you face them.
 local STATS = {
-	{ key = "Wins", title = "TOP WINS", color = Color3.fromRGB(255, 200, 40), shown = true },
-	{ key = "Streak", title = "TOP STREAKS", color = Color3.fromRGB(255, 120, 40), shown = true },
-	{ key = "Cash", title = "TOP CASH", color = Color3.fromRGB(90, 220, 90), shown = true },
-	{ key = "RobuxSpent", title = "TOP ROBUX", color = Color3.fromRGB(60, 160, 255), shown = false },
+	{ key = "Wins", icon = "Trophy", color = Color3.fromRGB(255, 200, 40), shown = true },
+	{ key = "Streak", icon = "Flame", color = Color3.fromRGB(255, 120, 40), shown = true },
+	{ key = "Cash", icon = "Cash", color = Color3.fromRGB(90, 220, 90), shown = true },
+	{ key = "RobuxSpent", icon = "Robux", color = Color3.fromRGB(60, 160, 255), shown = false },
 }
 
 local UPRIGHT = CFrame.Angles(0, 0, math.rad(90)) -- stands a cylinder's axis up
@@ -76,6 +80,11 @@ local function newPart(parent, name, props, className)
 			part[key] = value
 		end
 	end
+	if part.Material ~= Enum.Material.Neon and part.Material ~= Enum.Material.Glass then
+		part.Material = Enum.Material.Plastic -- studs only show on plastic
+	end
+	part.TopSurface = Enum.SurfaceType.Studs
+	part.BottomSurface = Enum.SurfaceType.Inlet
 	part.Parent = parent
 	return part
 end
@@ -94,26 +103,6 @@ local function onDeck(x, y, z)
 	return CFrame.new(CONFIG.Origin + Vector3.new(x, CONFIG.DeckHeight + y, z))
 end
 
-local function label(parent, text, color, size, offset)
-	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromOffset(size.X, size.Y)
-	gui.StudsOffset = offset or Vector3.new(0, 3, 0)
-	gui.MaxDistance = 160
-	gui.Parent = parent
-	local text_ = Instance.new("TextLabel")
-	text_.Name = "Text"
-	text_.Size = UDim2.fromScale(1, 1)
-	text_.BackgroundTransparency = 1
-	text_.FontFace = Font.fromEnum(Enum.Font.FredokaOne)
-	text_.TextScaled = true
-	text_.TextColor3 = color
-	text_.TextStrokeColor3 = Color3.fromRGB(20, 12, 30)
-	text_.TextStrokeTransparency = 0
-	text_.Text = text
-	text_.Parent = gui
-	return text_
-end
-
 -- A part stretched from a to b, for tree branches.
 local function limb(parent, a, b, width, color)
 	local up = math.abs((b - a).Unit.Y) > 0.999 and Vector3.xAxis or Vector3.yAxis
@@ -123,6 +112,69 @@ local function limb(parent, a, b, width, color)
 		Material = Enum.Material.Wood,
 		Color = color,
 	})
+end
+
+-- Little brick sculptures that say what something is without words.
+local function icon(parent, kind, cframe, scale)
+	local model = Instance.new("Model")
+	model.Name = kind .. "Icon"
+	model.Parent = parent
+	local function brick(size, offset, color, neon, shape)
+		return newPart(model, "Brick", decor({
+			Shape = shape,
+			Size = size * scale,
+			CFrame = cframe * CFrame.new(offset.Position * scale) * offset.Rotation,
+			Material = neon and Enum.Material.Neon or Enum.Material.Plastic,
+			Color = color,
+		}))
+	end
+	local gold = Color3.fromRGB(255, 200, 40)
+	if kind == "Trophy" then
+		brick(Vector3.new(3, 2.6, 3), CFrame.new(0, 3, 0), gold)
+		brick(Vector3.new(3.6, 0.5, 3.6), CFrame.new(0, 4.5, 0), gold)
+		for _, x in { -2, 2 } do
+			brick(Vector3.new(0.6, 1.8, 0.6), CFrame.new(x, 3.2, 0), gold)
+			brick(Vector3.new(0.9, 0.6, 0.6), CFrame.new(x * 0.85, 4, 0), gold)
+		end
+		brick(Vector3.new(1, 1.4, 1), CFrame.new(0, 1.2, 0), gold)
+		brick(Vector3.new(2.6, 0.6, 2.6), CFrame.new(0, 0.3, 0), Color3.fromRGB(150, 100, 30))
+	elseif kind == "Flame" then
+		local colors = { Color3.fromRGB(255, 70, 30), Color3.fromRGB(255, 130, 30), Color3.fromRGB(255, 200, 50), Color3.fromRGB(255, 240, 150) }
+		for i, size in { 3.4, 2.6, 1.8, 1 } do
+			brick(Vector3.new(size, 1.4, size), CFrame.new(0, 0.7 + (i - 1) * 1.3, 0) * CFrame.Angles(0, math.rad(i * 20), 0), colors[i], true)
+		end
+	elseif kind == "Cash" then
+		for i = 0, 3 do
+			brick(Vector3.new(4, 0.6, 2.2), CFrame.new(0, 0.3 + i * 0.6, 0) * CFrame.Angles(0, math.rad(i * 6), 0), Color3.fromRGB(70, 200, 80))
+			brick(Vector3.new(1, 0.62, 2.24), CFrame.new(0, 0.3 + i * 0.6, 0) * CFrame.Angles(0, math.rad(i * 6), 0), Color3.fromRGB(230, 240, 200))
+		end
+	elseif kind == "Robux" then
+		for i = 0, 5 do
+			brick(Vector3.new(0.8, 1.9, 0.8), CFrame.new(0, 2, 0) * CFrame.Angles(0, 0, math.rad(i * 60 + 30)) * CFrame.new(0, 1.65, 0), Color3.fromRGB(60, 160, 255), true)
+		end
+		brick(Vector3.new(1.1, 1.1, 0.9), CFrame.new(0, 2, 0), Color3.fromRGB(230, 245, 255), true)
+	elseif kind == "Gift" then
+		local red, white = Color3.fromRGB(240, 60, 70), Color3.fromRGB(255, 255, 255)
+		brick(Vector3.new(3, 3, 3), CFrame.new(0, 1.5, 0), red)
+		brick(Vector3.new(0.7, 3.1, 3.1), CFrame.new(0, 1.5, 0), white)
+		brick(Vector3.new(3.1, 3.1, 0.7), CFrame.new(0, 1.5, 0), white)
+		for _, angle in { 40, -40 } do
+			brick(Vector3.new(1.4, 0.9, 0.5), CFrame.new(0, 3.3, 0) * CFrame.Angles(0, 0, math.rad(angle)) * CFrame.new(0.6, 0, 0), white)
+		end
+	elseif kind == "Wheel" then
+		local colors = { Color3.fromRGB(255, 80, 80), Color3.fromRGB(255, 200, 40), Color3.fromRGB(90, 220, 90), Color3.fromRGB(60, 160, 255),
+			Color3.fromRGB(170, 90, 255), Color3.fromRGB(255, 130, 40), Color3.fromRGB(40, 220, 220), Color3.fromRGB(255, 90, 200) }
+		for i, color in colors do
+			brick(Vector3.new(0.5, 0.7, 1.8), CFrame.new(0, 2, 0) * CFrame.Angles(math.rad(i * 45), 0, 0) * CFrame.new(0, 0, 0.9), color, true)
+		end
+		brick(Vector3.new(0.7, 0.7, 0.7), CFrame.new(0, 2, 0), Color3.fromRGB(255, 255, 255))
+	elseif kind == "Hat" then
+		local black = Color3.fromRGB(30, 28, 36)
+		brick(Vector3.new(0.4, 4, 4), CFrame.new(0, 0.2, 0) * UPRIGHT, black, false, Enum.PartType.Cylinder)
+		brick(Vector3.new(2.8, 2.6, 2.6), CFrame.new(0, 1.8, 0) * UPRIGHT, black, false, Enum.PartType.Cylinder)
+		brick(Vector3.new(0.6, 2.7, 2.7), CFrame.new(0, 0.8, 0) * UPRIGHT, Color3.fromRGB(240, 60, 70), false, Enum.PartType.Cylinder)
+	end
+	return model
 end
 
 local function abbreviate(n)
@@ -229,6 +281,17 @@ local function buildSeaAndDeck()
 				light.Brightness = 1.4
 				light.Parent = lamp
 			end
+		end
+		local bulbColors = { Color3.fromRGB(255, 140, 40), Color3.fromRGB(170, 90, 255), Color3.fromRGB(80, 255, 120) }
+		for i = 0, math.floor(length / 3) do
+			local p = a + (b - a) * (i * 3 / length)
+			newPart(fence, "Bulb", decor({
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.one * 0.5,
+				CFrame = onDeck(p.X, 4.15, p.Z),
+				Material = Enum.Material.Neon,
+				Color = bulbColors[i % #bulbColors + 1],
+			}))
 		end
 		local mid = (a + b) / 2
 		for _, y in { 1.4, 3.6 } do
@@ -343,7 +406,7 @@ end
 ---------------------------------------------------------------- tables
 
 -- A table with seats on both long sides. Shows "taken/total" above it.
-local function buildTable(name, center, length, seatsPerSide, title)
+local function buildTable(name, center, length, seatsPerSide, isParty)
 	local model = Instance.new("Model")
 	model.Name = name
 	model.Parent = lobby
@@ -363,7 +426,13 @@ local function buildTable(name, center, length, seatsPerSide, title)
 		})
 	end
 
-	local seats = {}
+	local rim = newPart(model, "Rim", decor({
+		Size = Vector3.new(length + 0.4, 0.3, 4.8),
+		CFrame = center * CFrame.new(0, 2.7, 0),
+		Material = Enum.Material.Neon,
+		Color = isParty and COLORS.PartyRim or COLORS.SeatEmpty,
+	}))
+	local seats, lights = {}, {}
 	for _, side in { -1, 1 } do
 		for i = 1, seatsPerSide do
 			local x = (i - (seatsPerSide + 1) / 2) * (length / seatsPerSide)
@@ -388,24 +457,26 @@ local function buildTable(name, center, length, seatsPerSide, title)
 				Color = COLORS.Iron,
 			})
 			table.insert(seats, seat)
+			table.insert(lights, newPart(model, "SeatLight", decor({
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.one * 0.8,
+				CFrame = center * CFrame.new(x, 3.8, side * 1.5),
+				Material = Enum.Material.Neon,
+				Color = COLORS.SeatEmpty,
+			})))
 		end
 	end
-
-	local text
-	if title then
-		label(top, title, Color3.fromRGB(255, 210, 60), Vector2.new(220, 50), Vector3.new(0, 7, 0))
-	end
-	text = label(top, "0/" .. #seats, COLORS.Text, Vector2.new(120, 40), Vector3.new(0, title and 4.5 or 4, 0))
 
 	local function refresh()
 		local taken = 0
-		for _, seat in seats do
-			if seat.Occupant then
+		for i, seat in seats do
+			local sitting = seat.Occupant ~= nil
+			lights[i].Color = sitting and COLORS.SeatTaken or COLORS.SeatEmpty
+			if sitting then
 				taken += 1
 			end
 		end
-		text.Text = taken .. "/" .. #seats
-		text.TextColor3 = taken == #seats and Color3.fromRGB(255, 90, 90) or COLORS.Text
+		rim.Color = taken == #seats and COLORS.FullRim or (isParty and COLORS.PartyRim or COLORS.SeatEmpty)
 	end
 	for _, seat in seats do
 		seat:GetPropertyChangedSignal("Occupant"):Connect(refresh)
@@ -422,12 +493,12 @@ local function buildTables()
 			buildTable("DuelTable" .. number, onDeck(x - 4, 0, z), 7, 1)
 		end
 	end
-	buildTable("PartyTable", onDeck(-3, 0, -size.Y / 2 + 34), 13, 3, "PARTY")
+	buildTable("PartyTable", onDeck(-3, 0, -size.Y / 2 + 34), 13, 3, true)
 end
 
 ---------------------------------------------------------------- booths, swings, stage
 
-local function booth(name, center, color, text)
+local function booth(name, center, color, iconKind)
 	local model = Instance.new("Model")
 	model.Name = name
 	model.Parent = lobby
@@ -461,7 +532,7 @@ local function booth(name, center, color, text)
 		Color = color,
 		Transparency = 0.4,
 	}))
-	label(glow, text, color, Vector2.new(260, 60), Vector3.new(0, 11, 3))
+	icon(model, iconKind, center * CFrame.new(0, 9.2, 0.6), 1)
 	return model
 end
 
@@ -470,9 +541,9 @@ local function buildExtras()
 	local left = -size.X / 2 + 12
 	-- Booths down the left side, facing into the deck.
 	local facing = CFrame.Angles(0, -math.pi / 2, 0)
-	booth("DailySpins", onDeck(left, 0, 40) * facing, Color3.fromRGB(170, 90, 255), "Daily Spins")
-	booth("FreeRewards", onDeck(left, 0, 14) * facing, Color3.fromRGB(255, 210, 40), "Free Rewards")
-	booth("Cosmetics", onDeck(left, 0, -12) * facing, Color3.fromRGB(255, 70, 90), "Cosmetics")
+	booth("DailySpins", onDeck(left, 0, 40) * facing, Color3.fromRGB(170, 90, 255), "Wheel")
+	booth("FreeRewards", onDeck(left, 0, 14) * facing, Color3.fromRGB(255, 210, 40), "Gift")
+	booth("Cosmetics", onDeck(left, 0, -12) * facing, Color3.fromRGB(255, 70, 90), "Hat")
 
 	-- Spin wheel beside the Daily Spins booth.
 	local wheelCenter = onDeck(left - 3, 9, 52)
@@ -537,7 +608,7 @@ local function buildExtras()
 		}, "Seat")
 	end
 
-	-- Stage with the title sign at the back.
+	-- Stage with a rainbow brick banner at the back.
 	local back = size.Y / 2 - 9
 	newPart(lobby, "Stage", {
 		Size = Vector3.new(70, 1.6, 10),
@@ -553,35 +624,20 @@ local function buildExtras()
 			Color = Color3.fromRGB(236, 236, 244),
 		})
 	end
-	local sign = newPart(lobby, "TitleSign", {
-		Size = Vector3.new(60, 12, 1),
-		CFrame = onDeck(0, 16, size.Y / 2 - 3),
-		Material = Enum.Material.SmoothPlastic,
-		Color = Color3.fromRGB(30, 20, 60),
-	})
-	local gui = Instance.new("SurfaceGui")
-	gui.Face = Enum.NormalId.Front
-	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 20
-	gui.LightInfluence = 0
-	gui.Parent = sign
-	local text = Instance.new("TextLabel")
-	text.Size = UDim2.fromScale(1, 1)
-	text.BackgroundTransparency = 1
-	text.FontFace = Font.fromEnum(Enum.Font.FredokaOne)
-	text.TextScaled = true
-	text.TextColor3 = Color3.new(1, 1, 1)
-	text.TextStrokeTransparency = 0
-	text.Text = CONFIG.Title
-	text.Parent = gui
-	local gradient = Instance.new("UIGradient")
-	gradient.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 80, 80)),
-		ColorSequenceKeypoint.new(0.33, Color3.fromRGB(255, 220, 60)),
-		ColorSequenceKeypoint.new(0.66, Color3.fromRGB(60, 220, 160)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 90, 255)),
-	})
-	gradient.Parent = text
+	local rainbow = {
+		Color3.fromRGB(255, 80, 80), Color3.fromRGB(255, 160, 40), Color3.fromRGB(255, 220, 60),
+		Color3.fromRGB(90, 220, 90), Color3.fromRGB(60, 160, 255), Color3.fromRGB(150, 90, 255),
+	}
+	for i, color in rainbow do
+		newPart(lobby, "Banner", {
+			Size = Vector3.new(56, 2, 1),
+			CFrame = onDeck(0, 22 - i * 2, size.Y / 2 - 3),
+			Color = color,
+		})
+	end
+	for _, x in { -18, 0, 18 } do
+		icon(lobby, x == 0 and "Trophy" or "Gift", onDeck(x, 22, size.Y / 2 - 3), x == 0 and 1.4 or 0.8)
+	end
 	for _, x in { -27, 27 } do
 		newPart(lobby, "SignPost", {
 			Size = Vector3.new(1.2, 22, 1.2),
@@ -623,22 +679,18 @@ local function buildBoard(stat, cframe)
 	gui.LightInfluence = 0
 	gui.Parent = frame
 
-	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(1, 0, 0.11, 0)
-	title.BackgroundColor3 = stat.color
-	title.BorderSizePixel = 0
-	title.FontFace = Font.fromEnum(Enum.Font.FredokaOne)
-	title.TextScaled = true
-	title.TextColor3 = Color3.new(1, 1, 1)
-	title.TextStrokeTransparency = 0
-	title.Text = stat.title
-	title.Parent = gui
+	icon(lobby, stat.icon, cframe * CFrame.new(0, 29.6, 0), 1.3)
+	local band = Instance.new("Frame")
+	band.Size = UDim2.new(1, 0, 0.03, 0)
+	band.BackgroundColor3 = stat.color
+	band.BorderSizePixel = 0
+	band.Parent = gui
 
 	local rows = {}
 	for i = 1, 10 do
 		local row = Instance.new("Frame")
-		row.Size = UDim2.new(0.94, 0, 0.078, 0)
-		row.Position = UDim2.new(0.03, 0, 0.13 + (i - 1) * 0.086, 0)
+		row.Size = UDim2.new(0.94, 0, 0.085, 0)
+		row.Position = UDim2.new(0.03, 0, 0.06 + (i - 1) * 0.094, 0)
 		row.BackgroundColor3 = i % 2 == 0 and Color3.fromRGB(32, 28, 56) or Color3.fromRGB(26, 22, 46)
 		row.BorderSizePixel = 0
 		row.Parent = gui

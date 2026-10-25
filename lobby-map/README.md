@@ -1,11 +1,11 @@
 # Duel Lobby Map (Roblox Studio)
 
-One server Script that builds a Halloween duel lobby floating on the sea, built from parts (no assets).
+One server Script that builds a Halloween duel lobby floating on the sea, built from classic studded bricks (no assets). The only text anywhere is the names and numbers on the leaderboards.
 
-- Checkered wooden deck in turquoise water, snowy rocks around it, a fence with lamps, dead trees and pumpkins.
-- 12 duel tables with 2 seats and a 6-seat **PARTY** table. Each shows how many seats are taken (`0/2`, `1/6`...), red when full.
-- 4 leaderboards on the right edge: **TOP WINS**, **TOP STREAKS**, **TOP CASH**, **TOP ROBUX**. They save between sessions and rank players across all servers, refreshing every 60 seconds. Without saving (Studio with API access off) they rank the players in the current server.
-- Decorative booths (Daily Spins with a wheel, Free Rewards, Cosmetics), swings, and a stage with a title sign at the back.
+- Checkered deck in turquoise water, snowy rocks around it, a fence with lamps and string lights, dead trees and pumpkins. Every part is plastic with studs on top.
+- 12 duel tables with 2 seats and a 6-seat party table (purple rim). A light in front of each seat turns green when someone sits; the rim turns orange when the table is full.
+- 4 leaderboards on the right edge, marked by brick icons instead of titles: trophy (wins), flame (streaks), cash stack (cash), Robux hexagon (Robux spent). They save between sessions and rank players across all servers, refreshing every 60 seconds. Without saving (Studio with API access off) they rank the players in the current server.
+- Decorative booths marked by brick icons (wheel for spins, gift for free rewards, top hat for cosmetics), swings, and a stage with a rainbow brick banner at the back.
 
 ## Paste steps
 
@@ -19,7 +19,7 @@ To save stats and fill the boards across servers: publish the place and turn on 
 
 ## Changing things
 
-`CONFIG` at the top: `Title` (the sign), `Origin` (where the deck sits), `DeckSize`, `DeckHeight`, `BoardRefresh`.
+`CONFIG` at the top: `Origin` (where the deck sits), `DeckSize`, `DeckHeight`, `BoardRefresh`.
 
 ## Using the stats from your game
 
